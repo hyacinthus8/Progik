@@ -3,179 +3,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diákcsoport Kezelő</title>
+    <title>Dauerolás Animáció (Molekuláris szint)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f9;
-            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #e6e6fa; /* Világos lila háttér */
         }
+
         h1 {
-            color: #007bff;
-            border-bottom: 2px solid #ccc;
-            padding-bottom: 10px;
+            color: #4b0082; /* Sötét lila */
         }
-        textarea {
+
+        /* ------------------- A VIZUÁLIS MODELL ------------------- */
+        .hair-strand {
+            width: 400px;
+            height: 200px;
+            position: relative;
+            border: 2px dashed #9370db; /* Keret a hajszál cortex reprezentálására */
+            margin-top: 50px;
+            margin-bottom: 50px;
+        }
+
+        /* Keratin láncok (A diszulfid-hidak által összekötött két fehérjelánc) */
+        .keratin {
             width: 100%;
-            height: 100px;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
+            height: 2px;
+            background-color: #00008b; /* Sötétkék lánc */
+            position: absolute;
+            transition: transform 1.5s ease-in-out; /* Simább átmenet a mozgásnál */
         }
+        
+        .keratin-top {
+            top: 30px;
+        }
+
+        .keratin-bottom {
+            bottom: 30px;
+        }
+
+        /* Diszulfid-hidak (S-S) */
+        .bridge {
+            width: 5px;
+            height: 60px; /* Híd hossza */
+            background-color: transparent; /* Alapból átlátszó */
+            border-left: 5px solid #ffaa00; /* Sárga hídvonal */
+            position: absolute;
+            top: 70px; /* Kezdő pozíció a két lánc között */
+            transform-origin: top; /* A transform kezdőpontja felül legyen */
+        }
+
+        /* Híd szövege (S-S) */
+        .bridge::after {
+            content: 'S-S';
+            position: absolute;
+            top: 25px;
+            left: 10px;
+            color: #ffaa00;
+            font-weight: bold;
+        }
+
+        .b1 { left: 50px; }
+        .b2 { left: 195px; }
+        .b3 { left: 340px; }
+
+        /* ------------------- AZ ANIMÁCIÓ DEFINÍCIÓK ------------------- */
+
+        /* 1. Redukció fázisa (Kötések feltörése és eltolódása) */
+        .phase-reduction .keratin-top {
+            transform: translateY(-20px); /* Felső lánc feljebb tolódik */
+        }
+
+        .phase-reduction .keratin-bottom {
+            transform: translateY(20px); /* Alsó lánc lejjebb tolódik */
+        }
+
+        .phase-reduction .bridge {
+            /* A hidak eltűnnek, és átveszi a helyét a tiolcsoport (JS-ben beállítva) */
+            opacity: 0;
+        }
+
+        /* 2. Fixálás fázisa (Új kötések a hullámos/eltolódott pozícióban) */
+        .phase-fixation .keratin-top {
+            transform: translateY(-20px); 
+        }
+
+        .phase-fixation .keratin-bottom {
+            transform: translateY(20px); 
+        }
+
+        .phase-fixation .bridge {
+             /* Megtartjuk az eltolódást, és újra megjelennek a hidak */
+            opacity: 1;
+            transform: scaleY(1);
+        }
+
+        /* Animációs gomb stílusa */
         button {
-            padding: 10px 15px;
-            margin-right: 10px;
+            padding: 10px 20px;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin: 10px;
             border: none;
             border-radius: 5px;
-            cursor: pointer;
-            font-size: 1em;
             transition: background-color 0.3s;
         }
-        .shuffle-btn { background-color: #28a745; color: white; }
-        .group-btn { background-color: #ffc107; color: #333; }
-        .pick-btn { background-color: #dc3545; color: white; }
 
-        button:hover {
-            opacity: 0.9;
-        }
-        #results {
+        #startBtn { background-color: #3cb371; color: white; } /* Zöld */
+        #startBtn:hover { background-color: #2e8b57; }
+
+        #resetBtn { background-color: #dc143c; color: white; } /* Piros */
+        #resetBtn:hover { background-color: #b22222; }
+
+        .message {
             margin-top: 20px;
-            padding: 15px;
-            border: 1px solid #007bff;
-            border-radius: 5px;
-            background-color: #e9f7ff;
-            min-height: 50px;
-            white-space: pre-wrap; /* Megőrzi a sor formátumokat */
-        }
-        .group-input-container {
-            margin-bottom: 15px;
-        }
-        .group-input-container input {
-            padding: 8px;
-            width: 60px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            font-size: 1.2em;
+            color: #4b0082;
+            font-weight: bold;
+            min-height: 25px;
         }
     </style>
 </head>
 <body>
 
-    <h1>Diákcsoport Kezelő</h1>
+    <h1>Kémiai Dauer: A Diszulfid-hidak Története</h1>
 
-    <p>Írd be a diákok neveit, minden nevet **új sorba** (Enterrel elválasztva):</p>
-    <textarea id="studentNames" placeholder="Például:
-Péter
-Anna
-Gábor
-Orsolya
-..."></textarea>
+    <div id="statusMessage" class="message">Kattints a "Folyamat Indítása" gombra!</div>
 
-    <div class="group-input-container">
-        <label for="groupSize">Csoportok mérete (tanulók száma/csoport):</label>
-        <input type="number" id="groupSize" value="3" min="1">
+    <div class="hair-strand" id="animationContainer">
+        <div class="keratin keratin-top"></div>
+        <div class="keratin keratin-bottom"></div>
+        
+        <div class="bridge b1"></div>
+        <div class="bridge b2"></div>
+        <div class="bridge b3"></div>
     </div>
 
     <div>
-        <button class="shuffle-btn" onclick="shuffleStudents()">🔀 Random Sorrend</button>
-        <button class="group-btn" onclick="groupStudents()">👥 Random Csoportok</button>
-        <button class="pick-btn" onclick="pickRandomStudent()">⭐ Tanuló Kisorsolása</button>
+        <button id="startBtn" onclick="startPermAnimation()">▶️ Folyamat Indítása</button>
+        <button id="resetBtn" onclick="resetAnimation()">🔄 Visszaállítás</button>
     </div>
 
-    <hr>
-
-    <h2>Eredmény:</h2>
-    <div id="results">Kezd a műveleteket!</div>
-
     <script>
-        // Segédfüggvény a tömb véletlenszerű összekeveréséhez (Fisher-Yates algoritmus)
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
+        const container = document.getElementById('animationContainer');
+        const messageDisplay = document.getElementById('statusMessage');
+        const bridges = document.querySelectorAll('.bridge');
+
+        // Segédfüggvény a híd tartalmának frissítésére
+        function updateBridgeContent(content) {
+            bridges.forEach(bridge => {
+                // Biztosítja, hogy a tiol (-SH) megjelenjen a feltört hidak helyén
+                bridge.setAttribute('data-content', content);
+                bridge.classList.toggle('tiol-content', content !== 'S-S');
+            });
+            // Hozzáadunk CSS szabályt, ami az animáció alatt módosítja a pseudo-elementet
+            let style = document.getElementById('dynamicStyle');
+            if (!style) {
+                style = document.createElement('style');
+                style.id = 'dynamicStyle';
+                document.head.appendChild(style);
             }
-            return array;
+            // Ha SH van, eltávolítjuk a sárga hídvonalat, és beállítjuk a szöveget
+            if (content === 'SH') {
+                style.textContent = `
+                    .bridge { border-left: none !important; }
+                    .bridge::after { content: 'SH'; top: 5px; color: #4b0082; left: 10px; }
+                    .bridge.tiol-content { opacity: 1 !important; }
+                `;
+            } else {
+                // Alapértelmezett S-S állapot
+                 style.textContent = `
+                    .bridge { border-left: 5px solid #ffaa00; }
+                    .bridge::after { content: 'S-S'; top: 25px; color: #ffaa00; left: 10px; }
+                    .bridge.tiol-content { opacity: 1; }
+                `;
+            }
         }
 
-        // 1. Diákok random sorrendbe rakása
-        function shuffleStudents() {
-            const namesText = document.getElementById('studentNames').value.trim();
-            if (!namesText) {
-                document.getElementById('results').innerHTML = "Kérlek, írj be neveket!";
-                return;
-            }
-
-            // Nevek kinyerése és szűrjük ki az üres sorokat
-            let names = namesText.split('\n').map(name => name.trim()).filter(name => name.length > 0);
-
-            // Nevek véletlenszerű sorrendbe rendezése
-            const shuffledNames = shuffleArray(names);
-
-            document.getElementById('results').innerHTML = `<h3>🔀 Véletlenszerű Sorrend:</h3>${shuffledNames.join('\n')}`;
+        // 1. lépés: Eredeti állapot (reset)
+        function resetAnimation() {
+            container.classList.remove('phase-reduction', 'phase-fixation');
+            messageDisplay.textContent = "Kattints a \"Folyamat Indítása\" gombra!";
+            updateBridgeContent('S-S');
         }
 
-        // 2. Diákok random csoportokba rendezése
-        function groupStudents() {
-            const namesText = document.getElementById('studentNames').value.trim();
-            const size = parseInt(document.getElementById('groupSize').value);
+        // 2. lépés: Animáció indítása
+        function startPermAnimation() {
+            resetAnimation();
+            messageDisplay.textContent = "1. FÁZIS: REDUKCIÓ (Dauerfolyadék). Feltörnek az S-S hidak.";
 
-            if (!namesText) {
-                document.getElementById('results').innerHTML = "Kérlek, írj be neveket!";
-                return;
-            }
-            if (isNaN(size) || size < 1) {
-                document.getElementById('results').innerHTML = "Kérlek, adj meg egy érvényes csoportméretet (legalább 1)!";
-                return;
-            }
+            // 1. Redukció: Feltörés
+            setTimeout(() => {
+                container.classList.add('phase-reduction');
+                updateBridgeContent('SH'); 
+            }, 500); // Fél másodperc múlva indul a redukciós fázis
 
-            let names = namesText.split('\n').map(name => name.trim()).filter(name => name.length > 0);
-            if (names.length === 0) {
-                 document.getElementById('results').innerHTML = "Kérlek, írj be neveket!";
-                 return;
-            }
+            // 2. Fixálás: Újraépítés
+            setTimeout(() => {
+                messageDisplay.textContent = "2. FÁZIS: FIXÁLÁS (Neutralizálás). Az új formában újraépülnek az S-S hidak.";
+                
+                // Mivel a láncok már elmozdultak, a fixálás csak a hidakat építi újra
+                container.classList.remove('phase-reduction');
+                container.classList.add('phase-fixation');
+                updateBridgeContent('S-S'); // Visszaállítjuk az S-S feliratot
 
-            // Összekeverés
-            let shuffledNames = shuffleArray(names);
+            }, 3000); // 3 másodperc múlva indul a fixálás
 
-            let groups = [];
-            let groupNum = 1;
-
-            // Csoportok létrehozása
-            for (let i = 0; i < shuffledNames.length; i += size) {
-                const group = shuffledNames.slice(i, i + size);
-                groups.push(`**Csoport ${groupNum++}** (${group.length} fő):\n- ${group.join('\n- ')}`);
-            }
-
-            document.getElementById('results').innerHTML = `<h3>👥 Véletlenszerű Csoportok (méret: ${size}):</h3>${groups.join('\n\n')}`;
+            // 3. Befejezés
+            setTimeout(() => {
+                messageDisplay.textContent = "KÉSZ! A haj tartósan felvette az új, hullámos formát (Diszulfid-hidak stabilizáltak az új pozícióban).";
+            }, 5500); // 5.5 másodperc múlva a teljes animáció véget ér
         }
 
-        // 3. Egy tanuló kisorsolása
-        function pickRandomStudent() {
-            const namesText = document.getElementById('studentNames').value.trim();
-            if (!namesText) {
-                document.getElementById('results').innerHTML = "Kérlek, írj be neveket!";
-                return;
-            }
-
-            let names = namesText.split('\n').map(name => name.trim()).filter(name => name.length > 0);
-            if (names.length === 0) {
-                 document.getElementById('results').innerHTML = "Kérlek, írj be neveket!";
-                 return;
-            }
-
-            // Véletlenszerű index kiválasztása
-            const randomIndex = Math.floor(Math.random() * names.length);
-            const pickedStudent = names[randomIndex];
-
-            document.getElementById('results').innerHTML = `<h3>⭐ Kisorsolt Tanuló:</h3><p style="font-size: 1.5em; color: #dc3545;">**${pickedStudent}**</p>`;
-        }
-
-        // Egy példa névlista a könnyebb teszteléshez
-        window.onload = function() {
-            document.getElementById('studentNames').value = "Péter\nAnna\nGábor\nOrsolya\nTamás\nRéka\nZoltán\nVirág\nLászló\nFanni";
-        }
+        // Kezdeti állapot beállítása betöltéskor
+        window.onload = resetAnimation;
     </script>
 
 </body>
